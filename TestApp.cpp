@@ -35,12 +35,10 @@ public:
 
     void Setup()
     {
-        engineParameters_["WindowTitle"] = GetTypeName();
-        //engineParameters_["LogName"] = FILE_SYSTEM->GetAppPreferencesDir("urho3d", "logs") + GetTypeName() + ".log";
-        engineParameters_["FullScreen"] = false;
-        engineParameters_["WindowWidth"] = 800;
-        engineParameters_["WindowHeight"] = 600;
-        //engineParameters_["ResourcePaths"] = "GameData;Data;CoreData";
+        engineParameters_[EP_FULL_SCREEN] = false;
+        engineParameters_[EP_WINDOW_WIDTH] = 800;
+        engineParameters_[EP_WINDOW_HEIGHT] = 600;
+        engineParameters_[EP_FRAME_LIMITER] = false;
     }
 
     void Start()
@@ -53,7 +51,7 @@ public:
         DebugHud* debugHud = engine_->CreateDebugHud();
         debugHud->SetDefaultStyle(xmlFile);
 
-        spriteBatch_ = new SpriteBatch(context_);
+        spriteBatch_ = new SpriteBatch(context_, 600);
     }
 
     void SetupViewport()
@@ -140,6 +138,9 @@ public:
         SubscribeToEvent(E_ENDVIEWRENDER, URHO3D_HANDLER(Game, HandleEndViewRender));
     }
 
+    float angle_ = 0.0f;
+    float scale_ = 0.0f;
+
     void HandleUpdate(StringHash eventType, VariantMap& eventData)
     {
         using namespace Update;
@@ -157,19 +158,40 @@ public:
             fpsValue_ = fpsFrameCounter_;
             fpsFrameCounter_ = 0;
         }
+
+        angle_ += timeStep * 100.0f;
+        angle_ = fmod(angle_, 360.0f);
+
+        scale_ += timeStep;
     }
 
     void HandleEndViewRender(StringHash eventType, VariantMap& eventData)
     {
-        Texture2D* texture = GetSubsystem<ResourceCache>()->GetResource<Texture2D>("Urho2D/Ball.png");
+        Texture2D* ball = GetSubsystem<ResourceCache>()->GetResource<Texture2D>("Urho2D/Ball.png");
+        Texture2D* head = GetSubsystem<ResourceCache>()->GetResource<Texture2D>("Urho2D/imp/imp_head.png");
+
+        // Можно так очищать, а можно цвет зоны задать.
+        //GetSubsystem<Graphics>()->Clear(CLEAR_COLOR, Color::GREEN);
 
         spriteBatch_->Begin();
 
         for (int i = 0; i < 20000; i++)
-            spriteBatch_->Draw(texture, Vector2(Random(0.0f, 800.0f), Random(0.0f, 600.0f)), nullptr, Color::WHITE, Vector2(0, 0));
+            spriteBatch_->Draw(ball, Vector2(Random(0.0f, 800.0f), Random(0.0f, 600.0f)), nullptr, Color::WHITE);
 
-        spriteBatch_->DrawString(String("FPS: ") + String(fpsValue_), Vector2(50.0f, 50.0f),
-            CACHE->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 40, Color::RED);
+        spriteBatch_->Draw(head, Vector2(200.0f, 200.0f), nullptr, Color::WHITE, 0.0f, Vector2::ZERO, Vector2::ONE, SBE_FLIP_BOTH);
+
+        float scale = cos(scale_) + 1.0f; // cos возвращает значения в диапазоне [-1, 1], значит scale будет в диапазоне [0, 2].
+        Vector2 origin = Vector2(head->GetWidth() * 0.5f, head->GetHeight() * 0.5f);
+        spriteBatch_->Draw(head, Vector2(400.0f, 300.0f), nullptr, Color::WHITE, angle_, origin, Vector2(scale, scale));
+
+        spriteBatch_->DrawString(String("FPS: ") + String(fpsValue_),
+            CACHE->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 40.0f, Vector2(50.0f, 50.0f), Color::RED);
+
+        spriteBatch_->DrawString("Mirrored Text", CACHE->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 40.0f,
+            Vector2(250.0f, 200.0f), Color::RED, 0.0f, Vector2::ZERO, Vector2::ONE, SBE_FLIP_BOTH);
+
+        spriteBatch_->DrawString("Some Text", CACHE->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 40.0f,
+            Vector2(400.0f, 300.0f), Color::BLUE, angle_, Vector2::ZERO, Vector2(scale, scale));
 
         spriteBatch_->End();
     }
